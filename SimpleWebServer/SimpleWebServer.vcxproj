@@ -136,6 +136,8 @@
   <ItemGroup>
     <None Include="index-jpg.html" />
     <None Include="index.html" />
+    <None Include="style.css" />
+    <None Include="test.css" />
   </ItemGroup>
   <ItemGroup>
     <Text Include="data.txt" />

@@ -134,6 +134,8 @@ void TcpListener::broadcastToClients(int sendingClient, const char* msg, int len
 	}
 }
 
+
+
 void TcpListener::onClientConnected(SOCKET clientSocket)
 {
 	cout<< "client :" << clientSocket << '\n';
@@ -143,19 +145,20 @@ void TcpListener::onClientDisconnected(SOCKET clientSocket)
 	cout << "client :" << clientSocket << " disconnected " << '\n';
 }
 void TcpListener::onMessageReceived(SOCKET clientSocket, const char* msg, int length)
-{	//	创建一个string的 输入流
+{	
+	//	创建一个string的 输入流
 	std::istringstream iss(msg);
 	// 将接收到 的信息 按行 装入 vector
 	std::vector<std::string> parsed((std::istream_iterator<std::string>(iss)), std::istream_iterator<std::string>());
 
 	// 默认访问的设定 (404 file not found 'page')
-	std::string content = 
+	std::string content =
 		"<h1>404 Not Found !</h1>"; // 手写 404 html 文件
 	std::string htmlFile = "index.html"; // 在本地的 html 文件
 	int errorCode = 404; // 状态码
-	
+
 #ifdef DEBUG
-	
+
 #endif // DEBUG
 	/*for (string& temp : parsed) {
 		cout << temp<<'\n';
@@ -164,7 +167,6 @@ void TcpListener::onMessageReceived(SOCKET clientSocket, const char* msg, int le
 	//判断 接收 的信息是否 有效 同时 判断 发送的方式是否是 "GET"
 	if (parsed.size() >= 3 && parsed[0] == "GET")
 	{
-		
 		htmlFile = parsed[1];
 		//cout << htmlFile << endl;
 		//是否是直接访问 "127.0.0.1:8080"
@@ -172,36 +174,52 @@ void TcpListener::onMessageReceived(SOCKET clientSocket, const char* msg, int le
 		if (htmlFile == "/")
 		{
 			htmlFile = "index.html";
+			// 加载 本地的 html 文件
+			ifstream f(htmlFile);
+
+			//	加载成功 返回 html 文件
+			if (f.good())
+			{
+				std::string str((std::istreambuf_iterator<char>(f)), std::istreambuf_iterator<char>());
+				content = str;
+				errorCode = 200;
+			}
+			f.close();
+			//准备数据
+
+			std::string output = addResposeHeader(errorCode, "text/html", content.c_str(), content.length());
+			sendToClient(clientSocket, output.c_str(), output.size() + 1);
+			return;
 		}
 		else if (htmlFile.substr(htmlFile.size() - 3, htmlFile.size()) == "jpg") {
-			htmlFile = "image/picture.jpg";
-			ifstream stream(htmlFile, ios::out | ios::binary);
-			int len = 0;
-			char* data = nullptr;
-			if (stream.is_open()) {
-				stream.seekg(0, std::ios::end);
-				len = stream.tellg();
-				stream.seekg(0, std::ios::beg);
-				data = new char[len];
-				stream.read(data, len);
-				cout << "done" << endl;
-			}
-			errorCode = 200;
-			std::ostringstream oss;
-			oss << "HTTP/1.1 " << errorCode << " OK\r\n";
-			//oss << "Accept-Ranges: bytes\r\n";
-			oss << "Content-Type: image/jpg\r\n";
-			oss << "Content-Length: " << len << "\r\n";
-			oss << "\r\n";
-			/*for (int i = 0; i < len; i++) {
-				oss << data[i];
-			}*/
-			oss << string(data, len);
 
-			std::string output = oss.str();
+			htmlFile = "image/picture.jpg";
+			char* data = nullptr;
+			int len = readImg(htmlFile, data);
+			errorCode = 200;
+			std::string output = addResposeHeader(errorCode, "image/jpg", data, len);
 			sendToClient(clientSocket, output.c_str(), output.size());
 			return;
-		} // 123.jpg 7 -3 = 4
+
+		}
+		else if (htmlFile.substr(htmlFile.size() - 3, htmlFile.size()) == "css") {
+			htmlFile = "test.css";
+			ifstream f(htmlFile);
+
+			//	加载成功 返回 html 文件
+			if (f.good())
+			{
+				std::string str((std::istreambuf_iterator<char>(f)), std::istreambuf_iterator<char>());
+				content = str;
+				errorCode = 200;
+			}
+			f.close();
+			//准备数据
+
+			std::string output = addResposeHeader(errorCode, "text/css", content.c_str(), content.length());
+			sendToClient(clientSocket, output.c_str(), output.size() + 1);
+			return;
+		}
 #ifdef Project5
 
 		else {
@@ -209,7 +227,7 @@ void TcpListener::onMessageReceived(SOCKET clientSocket, const char* msg, int le
 			for (int i = 0; i < htmlFile.size(); i++) {
 				if (htmlFile[i] == '=') {
 					int j = i;
-					while (htmlFile[j] != '&'&&j!=htmlFile.size()-1) {
+					while (htmlFile[j] != '&' && j != htmlFile.size() - 1) {
 						j++;
 					}
 					string dataPart;
@@ -217,12 +235,12 @@ void TcpListener::onMessageReceived(SOCKET clientSocket, const char* msg, int le
 						dataPart = htmlFile.substr(i + 1, j - i - 1);
 					/*else
 						dataPart = htmlFile.substr(i + 1, j - i);*/
-					//cout << dataPart << endl;
-					if(dataPart != "")
-					data.push_back(dataPart);
+						//cout << dataPart << endl;
+					if (dataPart != "")
+						data.push_back(dataPart);
 				}
 			}
-			
+
 			errorCode = 200;
 
 		}
@@ -232,7 +250,7 @@ void TcpListener::onMessageReceived(SOCKET clientSocket, const char* msg, int le
 
 	if (!data.empty()) {
 		ofstream o;
-		o.open("data.txt",ios::app);
+		o.open("data.txt", ios::app);
 		o << '\n';
 		for (string& temp : data) {
 			o << temp << " ";
@@ -245,36 +263,57 @@ void TcpListener::onMessageReceived(SOCKET clientSocket, const char* msg, int le
 		content = htmlFile;
 	}
 #endif // Project5
-
+	string output = addResposeHeader(errorCode, "text/html", content.c_str(), content.length());
+	sendToClient(clientSocket, output.c_str(), output.size());
 		
+}
+	vector<string> TcpListener::split(const string& str, const string& pattern)
+{
+	std::vector<std::string> res;
+	if (str == "")
+		return res;
+	std::string strs = str + pattern;
+	size_t pos = strs.find(pattern);
 
+	while (pos != strs.npos)
+	{
+		std::string temp = strs.substr(0, pos);
+		res.push_back(temp);
+		strs = strs.substr(pos + 1, strs.size());
+		pos = strs.find(pattern);
+	}
 
-		// 加载 本地的 html 文件
-		ifstream f(htmlFile);
-
-		//	加载成功 返回 html 文件
-		if (f.good())
-		{
-			std::string str((std::istreambuf_iterator<char>(f)), std::istreambuf_iterator<char>());
-			content = str;
-			errorCode = 200;
+	return res;
+}
+	int TcpListener::readImg(string& htmlFile, char*& data)
+	{
+		ifstream stream(htmlFile, ios::out | ios::binary);
+		int len = 0;
+		data = nullptr;
+		if (stream.is_open()) {
+			stream.seekg(0, std::ios::end);
+			len = stream.tellg();
+			stream.seekg(0, std::ios::beg);
+			data = new char[len];
+			stream.read(data, len);
+			cout << "done" << endl;
 		}
-
-		f.close();
-
-
-		std::ostringstream oss;
-
+		return len;
+	}
+	string TcpListener::addResposeHeader(int errorCode, string&& contentType,const char* data,int len)
+	{
+		ostringstream oss;
 		oss << "HTTP/1.1 " << errorCode << " OK\r\n";
 		//oss << "Cache-Control: no-cache, private\r\n";
-		oss << "Content-Type: text/html\r\n";
-		oss << "Content-Length: " << content.size() << "\r\n";
+		oss << "Content-Type:" << contentType <<"\r\n";
+		oss << "Content-Length: " << len << "\r\n";
 		oss << "\r\n";
-		oss << content;
-
-		std::string output = oss.str();
-		//int size = output.size() + 1;
-
-		sendToClient(clientSocket, output.c_str(), output.size() + 1);
+		if (contentType == "image/jpg")
+		{
+			oss << string(data, len);
+		}
+		else {
+			oss << data ;
+		}
+		return oss.str();
 	}
-	

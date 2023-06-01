@@ -37,7 +37,9 @@ private:
 	string createTable(vector<string> data) {
 		return "<h1> table <h1>";
 	};
-	void readImg(ifstream& ifs, string& html,char * data);
+	int readImg(string& htmlFile,char *& data);
+	string addResposeHeader(int errorCode, string&& contentType, const char* data, int len);
+	std::vector<std::string> split(const std::string& str, const std::string& pattern);
 	bool isRun = false;
 	const char* ip; 
 	int port;

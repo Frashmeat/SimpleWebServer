@@ -34,6 +34,12 @@
     <None Include="index-jpg.html">
       <Filter>资源文件</Filter>
     </None>
+    <None Include="test.css">
+      <Filter>资源文件</Filter>
+    </None>
+    <None Include="style.css">
+      <Filter>资源文件</Filter>
+    </None>
   </ItemGroup>
   <ItemGroup>
     <Text Include="data.txt">
